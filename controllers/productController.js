@@ -24,23 +24,6 @@ export const createProduct = async (req, res, next) => {
 }
 
 export const getProducts = async (req, res, next) => {
-    const { page, limit, sortBy = '_id', sortOrder = 'asc', search = '' } = req.query;
-
-    const intPage = parseInt(page);
-    const intLimit = parseInt(limit);
-
-    const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
-
-    const regex = new RegExp(search, 'i');
-
-    const matchStage = {
-        deleted: false,
-        $or: [
-            { name: search ? regex : /.*/ },
-            { description: search ? regex : /.*/ },
-        ]
-    }
-
     try {
         const products = await Product.aggregate([
             {
@@ -51,35 +34,10 @@ export const getProducts = async (req, res, next) => {
                     as: 'category'
                 }
             },
-            { $unwind: '$category' },
-            { $match: matchStage },
-            { $sort: sortOptions },
-            { $skip: (intPage - 1) * intLimit },
-            { $limit: intLimit },
+            { $unwind: '$category' }
         ]);
-
-        const count = await Product.countDocuments({ deleted: false });
-
-        if (intLimit < 1 || intPage < 1 || (intPage - 1) * intLimit >= count) {
-            return res.status(400).json({
-                message: 'Número de página o límite inválido',
-                error: 'No hay Productos',
-                success: false,
-            });
-        }
-        const actualPage = intPage > Math.ceil(count / intLimit) ? Math.ceil(count / intLimit) : intPage;
-        const nextPage = intPage + 1 <= Math.ceil(count / intLimit) ? intPage + 1 : null;
-        const prevPage = intPage - 1 > 0 ? intPage - 1 : null;
-        const totalPages = Math.ceil(count / intLimit);
-        const totalItemsInCurrentPage = products.length;
-
         res.status(200).json({
-            data: products,
-            actualPage,
-            totalItemsInCurrentPage,
-            nextPage,
-            prevPage,
-            totalPages,
+            data: products
         });
 
     } catch (error) {
